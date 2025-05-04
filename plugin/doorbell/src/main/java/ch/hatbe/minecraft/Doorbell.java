@@ -13,14 +13,13 @@ public final class Doorbell extends JavaPlugin {
     public void onEnable() {
         System.out.println("PLUGIN ENABLED");
 
-        this.tcpServer = new TcpServer();
+        this.tcpServer = new TcpServer().start();
 
         Bukkit.getPluginManager().registerEvents(new OnPlayerInteract(tcpServer), this);
     }
 
     @Override
     public void onDisable() {
-        // TODO: disable tcp server
-        // Plugin shutdown logic
+        this.tcpServer.stop();
     }
 }

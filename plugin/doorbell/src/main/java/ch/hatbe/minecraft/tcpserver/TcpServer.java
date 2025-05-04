@@ -17,7 +17,6 @@ public class TcpServer implements Runnable {
         this.clients = new CopyOnWriteArrayList<ClientHandler>();
 
         this.thread = new Thread(this);
-        this.thread.start();
     }
 
     @Override
@@ -35,12 +34,31 @@ public class TcpServer implements Runnable {
                 clients.add(clientHandler);
 
                 System.out.println(String.format("Client has connected %s", socket.getRemoteSocketAddress().toString()));
-
             }
 
             System.out.println("SUCCESSFULLY STARTED SERVER");
         } catch(IOException e) {
             System.err.println("ERR STARTING SERVER");
+            e.printStackTrace();
+        }
+    }
+
+    public TcpServer start() {
+        this.thread.start();
+        return this;
+
+    }
+
+    public void stop() {
+        if(serverSocket == null) {
+            return;
+        }
+
+        try {
+            this.serverSocket.close();
+            System.out.println("Server stopped.");
+        } catch (IOException e) {
+            System.err.println("Could not stop server!");
             e.printStackTrace();
         }
     }

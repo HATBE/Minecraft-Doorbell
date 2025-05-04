@@ -20,11 +20,9 @@ public class OnPlayerInteract implements Listener {
         Block clickedBlock = event.getClickedBlock();
 
         if(clickedBlock.getType().equals(Material.POLISHED_BLACKSTONE_BUTTON)) {
-            event.getPlayer().sendMessage("Hello, you pressed the doorbell2");
+            event.getPlayer().sendMessage("successfully ringed the doorbell");
 
             this.tcpServer.getClients().getFirst().getOutputWriter().println("RING");
-            //this.tcpServer.getClients().getFirst().getOutputWriter().print("RING");
-
         }
     }
 
