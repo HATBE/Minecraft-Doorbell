@@ -24,7 +24,7 @@ public class OnPlayerInteract implements Listener {
 
             // TODO: FIX
             this.tcpServer.getClients().forEach(client -> {
-                client.getOutputWriter().println("RING");
+                client.getToClientWriter().println("RING");
             });
         }
     }

@@ -28,11 +28,20 @@ void connect() {
 }
 
 void connectToWifi() {
-  WiFi.begin("KellerWlan", "ThisPWis2good");
+  String wifiName = "KellerWlan";
+  String wifiPassword = "ThisPWis2good";
 
+  WiFi.begin(wifiName, wifiPassword);
+
+  Serial.print("connected to to WIfi: " + wifiName);
+  
+  Serial.print("\n");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    digitalWrite(blueLedPin, HIGH);
+    delay(250);
+    digitalWrite(blueLedPin, LOW);
     Serial.print(".");
+    delay(250);
   }
   Serial.print("\n");
 
@@ -78,19 +87,18 @@ void loop() {
 }
 
 void ring() {
-  Serial.println("RING RING RING");
-  digitalWrite(blueLedPin, HIGH);
   for(int i = 0; i < 5; i++) {
     soundBuzzer();
   }
-  digitalWrite(blueLedPin, LOW);
 }
 
 void soundBuzzer() {
+    digitalWrite(blueLedPin, HIGH);
     tone(buzzerPin, 1500);
     delay(500);
     tone(buzzerPin, 100);
-    delay(500);
+    delay(500);§
+    digitalWrite(blueLedPin, LOW);
     noTone(buzzerPin);
     delay(500); 
 }

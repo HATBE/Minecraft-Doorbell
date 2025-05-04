@@ -7,12 +7,15 @@ import java.nio.charset.StandardCharsets;
 public class ClientHandler implements Runnable {
 
     private Thread thread;
-    private Socket socket;
-    private BufferedReader inputReader;
-    private PrintWriter outputWriter;
+    private Socket client;
+    private TcpServer server;
+    private BufferedReader fromClientReader;
+    private PrintWriter toClientWriter;
 
-    public ClientHandler(Socket socket) {
-        this.socket = socket;
+    public ClientHandler(Socket client, TcpServer tcpServer) {
+        this.client = client;
+        this.server = tcpServer;
+
         this.thread = new Thread(this);
         this.thread.start();
     }
@@ -20,13 +23,13 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
        try {
-           this.inputReader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-           this.outputWriter =  new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+           this.fromClientReader = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
+           this.toClientWriter =  new PrintWriter(new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8), true);
 
-           this.outputWriter.println("ACK");
+           this.toClientWriter.println("ACK");
 
-            while(this.socket.isConnected()) {
-                 String data = this.inputReader.readLine();
+            while(!this.server.getServerSocket().isClosed() && this.client.isConnected()) {
+                 String data = this.fromClientReader.readLine();
 
                  if(data == null) {
                      // client disconnects, goto finally
@@ -42,39 +45,43 @@ public class ClientHandler implements Runnable {
        } catch (IOException e) {
            e.printStackTrace();
        } finally {
-            //this.close();
+            this.disconnect();
        }
     }
 
-    public BufferedReader getInputReader() {
-        return inputReader;
+    public BufferedReader getFromClientReader() {
+        return fromClientReader;
     }
 
-    public PrintWriter getOutputWriter() {
-        return outputWriter;
+    public PrintWriter getToClientWriter() {
+        return toClientWriter;
     }
 
-    private void close() {
-        if(this.inputReader != null) {
+    public void disconnect() {
+        this.server.removeClient(this);
+
+        if(this.fromClientReader != null) {
             try {
-                this.inputReader.close();
+                this.fromClientReader.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        if(this.outputWriter != null) {
-            this.outputWriter.close();
+        if(this.toClientWriter != null) {
+            this.toClientWriter.close();
         }
 
-        if(this.socket != null) {
+        if(this.client != null) {
             try {
-                this.socket.close();
+                this.client.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+    }
 
-        System.out.println(String.format("Client %s has disconnected", this.socket.getRemoteSocketAddress()));
+    public Socket getClient() {
+        return client;
     }
 }
