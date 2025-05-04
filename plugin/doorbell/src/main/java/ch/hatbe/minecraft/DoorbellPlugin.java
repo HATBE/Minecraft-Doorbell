@@ -1,9 +1,9 @@
 package ch.hatbe.minecraft;
 
-import ch.hatbe.minecraft.listeners.OnPlayerInteract;
+import ch.hatbe.minecraft.listeners.OnPlayerClickOnDoorbellButton;
+import ch.hatbe.minecraft.listeners.OnPlayerPlaceDoorbellSign;
 import ch.hatbe.minecraft.tcpserver.TcpServer;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
@@ -30,7 +30,8 @@ public final class DoorbellPlugin extends JavaPlugin {
     }
 
     private void registerEvents() {
-        Bukkit.getPluginManager().registerEvents(new OnPlayerInteract(tcpServer), this);
+        Bukkit.getPluginManager().registerEvents(new OnPlayerClickOnDoorbellButton(tcpServer), this);
+        Bukkit.getPluginManager().registerEvents(new OnPlayerPlaceDoorbellSign(), this);
     }
 
     @Override
