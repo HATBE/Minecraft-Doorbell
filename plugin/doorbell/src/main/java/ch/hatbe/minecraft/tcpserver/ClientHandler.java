@@ -1,8 +1,14 @@
 package ch.hatbe.minecraft.tcpserver;
 
+import ch.hatbe.minecraft.Doorbell;
+import ch.hatbe.minecraft.DoorbellPlugin;
+import ch.hatbe.minecraft.HardwareClient;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class ClientHandler implements Runnable {
 
@@ -11,6 +17,8 @@ public class ClientHandler implements Runnable {
     private TcpServer server;
     private BufferedReader fromClientReader;
     private PrintWriter toClientWriter;
+
+    private HardwareClient hwCLient = null;
 
     public ClientHandler(Socket client, TcpServer tcpServer) {
         this.client = client;
@@ -26,7 +34,7 @@ public class ClientHandler implements Runnable {
            this.fromClientReader = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
            this.toClientWriter =  new PrintWriter(new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8), true);
 
-           this.toClientWriter.println("ACK");
+           // TODO: this.toClientWriter.println("ACK");
 
             while(!this.server.getServerSocket().isClosed() && this.client.isConnected()) {
                  String data = this.fromClientReader.readLine();
@@ -40,7 +48,41 @@ public class ClientHandler implements Runnable {
                      continue;
                  }
 
+                 String[] parts = data.split("/:/");
+
+                 if(hwCLient == null) {
+
+                     // Check login
+                     if(parts.length < 3) {
+                         this.toClientWriter.println("NACK");
+                         return;
+                     }
+
+                     if(!parts[0].equals("LOGIN")) {
+                         this.toClientWriter.println("NACK");
+                         return;
+                     }
+
+                     String clientId = parts[1];
+                     String password = parts[2];
+
+                     List<Doorbell> doorbells = JavaPlugin.getPlugin(DoorbellPlugin.class).getRegisteredDoorbells();
+
+                     doorbells.forEach(doorbell -> {
+                        if(doorbell.getId().equals(clientId)) {
+                            if(doorbell.getPassword().equals(password)) {
+                                hwCLient = new HardwareClient(doorbell.getId());
+                                this.toClientWriter.println("ACK");
+                            }
+                        }
+                     });
+
+                     //this.toClientWriter.println("NACK");
+                     //return;
+                 }
+
                  System.out.println(data);
+
             }
        } catch (IOException e) {
            e.printStackTrace();
@@ -72,7 +114,7 @@ public class ClientHandler implements Runnable {
             this.toClientWriter.close();
         }
 
-        if(this.client != null) {
+        if (this.client != null) {
             try {
                 this.client.close();
             } catch (IOException e) {

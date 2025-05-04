@@ -1,30 +1,40 @@
 package ch.hatbe.minecraft;
 
-import ch.hatbe.minecraft.listeners.OnPlayerInteract;
-import ch.hatbe.minecraft.tcpserver.TcpServer;
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
 
-public final class Doorbell extends JavaPlugin {
-    TcpServer tcpServer;
+import org.bukkit.Location;
 
-    @Override
-    public void onEnable() {
-        getLogger().info("Enabled");
+public class Doorbell {
+    private String id;
+    private String password;
+    private String username;
+    private String playerId;
+    private Location location;
 
-        this.tcpServer = new TcpServer(1337).start();
-
-        this.registerEvents();
+    public Doorbell(String id, String password, String playerId, String username, Location location) {
+        this.id = id;
+        this.password = password;
+        this.playerId = playerId;
+        this.username = username;
+        this.location = location;
     }
 
-    private void registerEvents() {
-        Bukkit.getPluginManager().registerEvents(new OnPlayerInteract(tcpServer), this);
+    public String getId() {
+        return id;
     }
 
-    @Override
-    public void onDisable() {
-        this.tcpServer.stop();
+    public String getPassword() {
+        return this.password;
+    }
 
-        getLogger().info("Disabled");
+    public String getPlayerId() {
+        return playerId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public Location getLocation() {
+        return location;
     }
 }
