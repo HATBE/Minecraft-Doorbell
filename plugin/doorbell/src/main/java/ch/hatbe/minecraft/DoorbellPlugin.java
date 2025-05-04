@@ -26,7 +26,7 @@ public final class DoorbellPlugin extends JavaPlugin {
 
     // TODO: DEBUG ONLY, CHANGE TO FS LATER
     private void registerClients() {
-        this.registeredDoorbells.add(new Doorbell("35d3c3be-bf1a-4629-834b-43cb8aeb1fcc", "Qn$18v,8rXmt", "d910b0d2-0763-4aaf-8181-f1dde4d10fd4", "HATBE", new Location(Bukkit.getWorld("world"), 3, 70, -14)));
+        //this.registeredDoorbells.add(new Doorbell("35d3c3be-bf1a-4629-834b-43cb8aeb1fcc", "Qn$18v,8rXmt", "HATBE");
     }
 
     private void registerEvents() {

@@ -1,9 +1,11 @@
 #include <ESP8266WiFi.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
 
-int greenLedPin = 5;
-int redLedPin = 14;
-int blueLedPin = 12;
-int buzzerPin = 4;
+int greenLedPin = 15;
+int redLedPin = 2;
+int blueLedPin = 16;
+int buzzerPin = 14;
 
 String delimiter = "/:/";
 
@@ -18,8 +20,15 @@ uint16_t serverPort = 1337;
 
 WiFiClient client;
 bool loggedIn = false;
+bool lockedOut = false;
+
+LiquidCrystal_I2C lcd(0x27,16,2);
 
 void setup() {
+
+  lcd.init();
+  lcd.backlight();
+
   Serial.begin(9600);
 
   delay(200);
@@ -31,6 +40,18 @@ void setup() {
 
   connectToWifi();
   connectToServer();
+}
+
+void textToScreen(String line1, String line2 = "") {
+  if(line1.length() > 16 || line2.length() > 16) {
+    textToScreen("TEXT TO LONG");
+    return;
+  }
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
 }
 
 bool connectToWifi() {
@@ -69,7 +90,9 @@ bool connectToServer() {
     if(response != "ACK") {
       // denied login
       Serial.println("Login not successful!");
+      textToScreen("Wrong", "credentials");
       ledErrorState();
+      lockedOut = true;
       return false;
     } 
 
@@ -102,13 +125,19 @@ void ledSuccessState() {
 bool checkConnection() {
   if(WiFi.status() != WL_CONNECTED) {
     ledErrorState();
+    textToScreen("Wifi error");
     connectToWifi();
     return false;
   }
   
   if(!client.connected()) {
-   ledErrorState();
+    ledErrorState();
+    textToScreen("TCP Conn Error");
     connectToServer();
+    return false;
+  }
+
+  if(lockedOut) {
     return false;
   }
 
@@ -135,6 +164,8 @@ void loop() {
 
   String response = clientRead();
 
+  Serial.println(response);
+
   if(response == "") {
     return;
   }
@@ -145,6 +176,7 @@ void loop() {
 }
 
 void ring() {
+  textToScreen("RING");
   for(int i = 0; i < 2; i++) {
     for(int j = 0; j < 3; j++) {
       soundBuzzer();
