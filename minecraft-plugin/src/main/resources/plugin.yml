@@ -2,3 +2,6 @@ name: doorbell
 version: '1.0-SNAPSHOT'
 main: ch.hatbe.minecraft.DoorbellPlugin
 api-version: '1.21'
+commands:
+  clientregister:
+    description: "registers a client"

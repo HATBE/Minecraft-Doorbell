@@ -1,52 +1,155 @@
-#include <ESP8266WiFi.h>
-#include <Wire.h> 
+#include <SPI.h>
+#include <SD.h>
 #include <LiquidCrystal_I2C.h>
 
-int greenLedPin = 15;
-int redLedPin = 2;
-int blueLedPin = 16;
-int buzzerPin = 14;
+#include <ArduinoJson.h>
 
-String delimiter = "/:/";
-
-// \/ CONFIG START \/
-String clientId = "35d3c3be-bf1a-4629-834b-43cb8aeb1fcc";
-String clientPassword = "Qn$18v,8rXmt";
-String wifiName = "KellerWlan";
-String wifiPassword = "ThisPWis2good";
-String serverHostname = "10.10.10.109";
-uint16_t serverPort = 1337;
-// /\ CONFIG START /\
-
-WiFiClient client;
-bool loggedIn = false;
-bool lockedOut = false;
+#include <WiFiS3.h> 
 
 LiquidCrystal_I2C lcd(0x27,16,2);
+WiFiClient wifiClient;
 
-void setup() {
+int buzzerPin = 7;
+int redLedPin = 5;
+int greenLedPin = 6;
+int blueLedPin = 2;
 
-  lcd.init();
-  lcd.backlight();
+// TODO: ERROR HANDLER
+//list<String> errors;
 
-  Serial.begin(9600);
+String wifiSsid;
+String wifiPass;
+String tcpHostname;
+int tcpPort;
 
-  delay(200);
+char delimiter = ',';
 
-  pinMode(greenLedPin, OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  pinMode(buzzerPin, OUTPUT);
-  pinMode(blueLedPin, OUTPUT);
+void loadConfig() {
+  Serial.println("SD: Start initializing SD card...");
+  if(!SD.begin(4)) {
+    Serial.println("ERROR! SD: Initialization of SD card failed!");
+    while(1);
+  }
+  Serial.println("SD: Initialization of SD card successfully done.");
 
-  connectToWifi();
-  connectToServer();
+  File configFile = SD.open("CONF");
+
+  if(!configFile) {
+    Serial.println("ERROR! SD: Configfile could not be found!");
+    while(1);
+  }
+
+  String fileContent = "";
+
+  while(configFile.available()) {
+    fileContent += (char) configFile.read();
+  }
+
+  JsonDocument confDoc;
+  deserializeJson(confDoc, fileContent);
+
+  if(!confDoc["WIFI"]) {
+    Serial.println("ERROR! Config: WIFI object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["WIFI"]["SSID"]) {
+    Serial.println("ERROR! Config: WIFI/SSID object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["WIFI"]["PASSWORD"]) {
+    Serial.println("ERROR! Config: WIFI/PASSWORD object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["MC"]) {
+    Serial.println("ERROR! Config: MC object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["MC"]) {
+    Serial.println("ERROR! Config: MC object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["MC"]["HOSTNAME"]) {
+    Serial.println("ERROR! Config: WIFI/PASSWORD object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["MC"]["PORT"]) {
+    Serial.println("ERROR! Config: WIFI/PASSWORD object could not be found in config!");
+    while(1);
+  }
+
+  wifiSsid = confDoc["WIFI"]["SSID"].as<String>();
+  wifiPass = confDoc["WIFI"]["PASSWORD"].as<String>();
+  tcpHostname = confDoc["MC"]["HOSTNAME"].as<String>();
+  tcpPort = confDoc["MC"]["PORT"].as<int>();
+
+  configFile.close();
+}
+
+void connectToWifi() {
+  Serial.println("Wifi: Start initialization of Wifi.");
+
+  if(WiFi.status() == WL_NO_MODULE) {
+    Serial.println("ERROR! Wifi: Communication with WiFi module failed!");
+    while (1); 
+  }
+
+  Serial.println("Wifi: checks ok.");
+
+  int wifiStatus = WL_IDLE_STATUS;
+
+  // TODO: timeout
+  while (wifiStatus != WL_CONNECTED) {
+    wifiStatus = WiFi.begin(wifiSsid.c_str(), wifiPass.c_str()); 
+    delay(500); // wait 1 seconds for new connection attempt
+  }
+
+  delay(1000); // delay for DHCP (for slow systems)) // otherwise 0.0.0.0
+
+  Serial.println("Wifi: Connection Successfull! IP: " + WiFi.localIP().toString());
+}
+
+void connectToTCPServer() {
+  Serial.println("TCP: Start connection.");
+
+  if(!wifiClient.connect(tcpHostname.c_str(), tcpPort)) {
+    Serial.println("ERROR! TCP: Error while connectiong to TCP server!");
+  }
+
+  Serial.println("TCP: Successfully connected to " + tcpHostname + ":" + tcpPort);
+}
+
+String clientRead(unsigned long timeoutMs = 2000) {
+  unsigned long start = millis();
+
+  while (!wifiClient.available()) {
+    if (millis() - start >= timeoutMs) {
+      Serial.println("ERROR! TCP: Timeout waiting for response.");
+      return "";
+    }
+    delay(10);
+  }
+
+  String response = wifiClient.readStringUntil('\n');
+  response.trim();
+  return response;
 }
 
 void textToScreen(String line1, String line2 = "") {
-  if(line1.length() > 16 || line2.length() > 16) {
-    textToScreen("TEXT TO LONG");
+  if(line1.length() > 16) {
+    textToScreen("TEXT TO LONG", line2);
     return;
   }
+  if(line2.length() > 16) {
+    textToScreen(line1, "TEXT TO LONG");
+    return;
+  }
+
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(line1);
@@ -54,145 +157,83 @@ void textToScreen(String line1, String line2 = "") {
   lcd.print(line2);
 }
 
-bool connectToWifi() {
-  Serial.println("start Wifi connection");
+void loginToTcpServer() {
+  wifiClient.println("TEEST");
 
-  WiFi.begin(wifiName, wifiPassword);
+  String response = clientRead();
+  /*if (response == "") {
+    Serial.println("No response or timeout during login.");
+    return;
+  }*/
 
-  Serial.print("connected to to WIfi: " + wifiName);
-  
-  // TODO: timeout on wifi connection! and then when timeout return false
-
-  while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(blueLedPin, HIGH);
-    delay(250);
-    digitalWrite(blueLedPin, LOW);
-    Serial.print(".");
-    delay(250);
-  }
-  Serial.print("\n");
-
-  Serial.println("IP: " + WiFi.localIP().toString());
-  return true;
+  Serial.println("Server response: " + response);
 }
 
-bool connectToServer() {
-  if(client.connect(serverHostname, serverPort)) {
-    Serial.println("connected to tcp server: " + serverHostname + ":" + serverPort);
-
-    // LOGIN
-    client.println("LOGIN" + delimiter + clientId + delimiter + clientPassword);
-
-    String response = clientRead();
-
-    Serial.println(response);
-
-    if(response != "ACK") {
-      // denied login
-      Serial.println("Login not successful!");
-      textToScreen("Wrong", "credentials");
-      ledErrorState();
-      lockedOut = true;
-      return false;
-    } 
-
-    ledSuccessState();
-
-    // login successful
-    // TODO:
-    loggedIn = true;
-    Serial.println("Login successful!");
-
-    //Serial.println("resp: " + response);
-
-    return true;
-  } else {
-    Serial.println("NOT connected to server");
-    return false;
-  }
-}
-
-void ledErrorState() {
-  digitalWrite(redLedPin, HIGH);
-  digitalWrite(greenLedPin, LOW);
-}
-
-void ledSuccessState() {
-  digitalWrite(redLedPin, LOW);
-  digitalWrite(greenLedPin, HIGH);
-}
-
-bool checkConnection() {
+bool checkConnections() {
   if(WiFi.status() != WL_CONNECTED) {
-    ledErrorState();
-    textToScreen("Wifi error");
+    Serial.println("ERROR! WIFI: connection lost!");
     connectToWifi();
     return false;
   }
-  
-  if(!client.connected()) {
-    ledErrorState();
-    textToScreen("TCP Conn Error");
-    connectToServer();
+  if(!wifiClient.connected()) {
+    Serial.println("ERROR! TCP: connection lost!");
+    connectToTCPServer();
     return false;
   }
-
-  if(lockedOut) {
-    return false;
-  }
-
-  ledSuccessState();
   return true;
 }
 
-String clientRead() {
-  String response = client.readStringUntil('\n');
+void initPins() {
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(greenLedPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  pinMode(blueLedPin, OUTPUT);
+}
 
-  response.trim();
+void initLcd() {
+  lcd.init();
+  lcd.backlight();
+}
 
-  return response;
+void setup() {
+  Serial.begin(9600);
+
+  initPins();
+  initLcd();
+
+  loadConfig();
+
+  connectToWifi();
+  connectToTCPServer();
+  
+  loginToTcpServer();
+
+  textToScreen("ashduijasghuizdhgasgdhjasgd", "123");
 }
 
 void loop() {
-  if(!checkConnection()) {
+  if(!checkConnections()) {
     return;
   }
 
-  if(!loggedIn) {
-    return;
-  }
 
-  String response = clientRead();
-
-  Serial.println(response);
-
-  if(response == "") {
-    return;
-  }
-
-  if(response == "RING") {
-    ring();
-  }
+  // TODO:
 }
 
 void ring() {
-  textToScreen("RING");
+  //textToScreen("The bell is ringing");
   for(int i = 0; i < 2; i++) {
     for(int j = 0; j < 3; j++) {
-      soundBuzzer();
+      digitalWrite(blueLedPin, HIGH);
+      tone(buzzerPin, 660);
+      delay(700); 
+      tone(buzzerPin, 550);
+      delay(700); 
+      digitalWrite(blueLedPin, LOW);
+      tone(buzzerPin, 440); 
+      delay(1000); 
+      noTone(buzzerPin);
     }
     delay(1500);
   }
-}
-
-void soundBuzzer() {
-  digitalWrite(blueLedPin, HIGH);
-  tone(buzzerPin, 660);
-  delay(700); 
-  tone(buzzerPin, 550);
-  delay(700); 
-  digitalWrite(blueLedPin, LOW);
-  tone(buzzerPin, 440); 
-  delay(1000); 
-  noTone(buzzerPin);
 }

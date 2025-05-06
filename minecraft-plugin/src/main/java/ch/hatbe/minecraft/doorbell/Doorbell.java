@@ -1,4 +1,4 @@
-package ch.hatbe.minecraft;
+package ch.hatbe.minecraft.doorbell;
 
 
 import org.bukkit.Location;

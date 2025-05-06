@@ -1,14 +1,12 @@
 package ch.hatbe.minecraft.tcpserver;
 
-import ch.hatbe.minecraft.Doorbell;
 import ch.hatbe.minecraft.DoorbellPlugin;
-import ch.hatbe.minecraft.HardwareClient;
+import ch.hatbe.minecraft.client.HardwareClient;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 public class ClientHandler implements Runnable {
 
@@ -34,54 +32,67 @@ public class ClientHandler implements Runnable {
            this.fromClientReader = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
            this.toClientWriter =  new PrintWriter(new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8), true);
 
-           // TODO: this.toClientWriter.println("ACK");
+           // TODO: this.toClientWriter.println("CONN,ACK");
 
-            while(!this.server.getServerSocket().isClosed() && this.client.isConnected()) {
-                 String data = this.fromClientReader.readLine();
+           CLIENT_LOOP: while(!this.server.getServerSocket().isClosed() && this.client.isConnected()) {
+                String data = this.fromClientReader.readLine();
 
-                 if(data == null) {
-                     // client disconnects, goto finally
-                     break;
-                 }
+                if (data == null) {
+                    // client disconnects, goto finally
+                    break;
+                }
 
-                 if(data.isEmpty()) {
-                     continue;
-                 }
+                if (data.isEmpty()) {
+                    continue;
+                }
 
-                 String[] parts = data.split("/:/");
+               System.out.println(data);
 
-                 if(hwCLient == null) {
+               this.toClientWriter.println("ABC");
 
-                     // Check login
-                     if(parts.length < 3) {
-                         this.toClientWriter.println("NACK");
-                         return;
-                     }
+               /*
 
-                     if(!parts[0].equals("LOGIN")) {
-                         this.toClientWriter.println("NACK");
-                         return;
-                     }
+                String[] segments = data.split("/:/");
 
-                     String clientId = parts[1];
-                     String password = parts[2];
+                // NOT LOGGED IN!
+                if(hwCLient == null) {
+                    if(segments.length != 3) {
+                        return;
+                    }
 
-                     List<Doorbell> doorbells = JavaPlugin.getPlugin(DoorbellPlugin.class).getRegisteredDoorbells();
+                    System.out.println("1");
 
-                     doorbells.forEach(doorbell -> {
-                        if(doorbell.getId().equals(clientId)) {
-                            if(doorbell.getPassword().equals(password)) {
-                                hwCLient = new HardwareClient(doorbell.getId());
-                                this.toClientWriter.println("ACK");
+
+                    if(!segments[0].equals("LOGIN")) {
+                        System.out.println("NO LOGIN");
+                        return;
+                    }
+
+                    String clientId = segments[1];
+                    String password = segments[2];
+
+                    System.out.println(clientId + " " + password);
+
+                    for(HardwareClient client : JavaPlugin.getPlugin(DoorbellPlugin.class).getRegisteredHardwareClients()) {
+                        if(client.getId().equals(clientId)) {
+                            // TODO: HASHING!!
+                            if(client.getPasswordHash().equals(password)) {
+                                // LOGIN IS SUCCESSFULLY
+                                this.hwCLient = client;
+                                this.toClientWriter.println("LOGIN/:/ACK");
+                                continue CLIENT_LOOP;
                             }
+
                         }
-                     });
+                    }
 
-                     //this.toClientWriter.println("NACK");
-                     //return;
-                 }
+                    this.toClientWriter.println("LOGIN/:/NACK");
 
-                 System.out.println(data);
+                    this.disconnect();
+                    return;
+                }
+
+                // TODO: GOON::::*/
 
             }
        } catch (IOException e) {

@@ -1,5 +1,7 @@
 package ch.hatbe.minecraft;
 
+import ch.hatbe.minecraft.client.HardwareClient;
+import ch.hatbe.minecraft.commands.ClientRegisterCommand;
 import ch.hatbe.minecraft.listeners.OnPlayerClickOnDoorbellButton;
 import ch.hatbe.minecraft.listeners.OnPlayerPlaceDoorbellSign;
 import ch.hatbe.minecraft.tcpserver.TcpServer;
@@ -12,21 +14,28 @@ import java.util.List;
 public final class DoorbellPlugin extends JavaPlugin {
     private TcpServer tcpServer;
 
-    private List<Doorbell> registeredDoorbells = new ArrayList<>();
+    //private List<Doorbell> registeredDoorbells = new ArrayList<>();
+    private List<HardwareClient> registeredHardwareClients = new ArrayList<>();
 
     @Override
     public void onEnable() {
         getLogger().info("Enabled");
 
-        this.registerClients();
+        //this.registerClients();
+
         this.tcpServer = new TcpServer(1337).start();
 
         this.registerEvents();
+        this.registerCommands();
     }
 
     // TODO: DEBUG ONLY, CHANGE TO FS LATER
     private void registerClients() {
-        //this.registeredDoorbells.add(new Doorbell("35d3c3be-bf1a-4629-834b-43cb8aeb1fcc", "Qn$18v,8rXmt", "HATBE");
+        this.registeredHardwareClients.add(new HardwareClient("d910b0d2-0763-4aaf-8181-f1dde4d10fd4", "Qn$18v,8rXmt"));
+    }
+
+    private void registerCommands() {
+        this.getCommand("clientregister").setExecutor(new ClientRegisterCommand());
     }
 
     private void registerEvents() {
@@ -41,7 +50,7 @@ public final class DoorbellPlugin extends JavaPlugin {
         getLogger().info("Disabled");
     }
 
-    public List<Doorbell> getRegisteredDoorbells() {
-        return this.registeredDoorbells;
+    public List<HardwareClient> getRegisteredHardwareClients() {
+        return registeredHardwareClients;
     }
 }
