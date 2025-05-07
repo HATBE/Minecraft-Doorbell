@@ -4,6 +4,8 @@
 
 #include <ArduinoJson.h>
 
+#include <Base64.h>
+
 #include <WiFiS3.h> 
 
 LiquidCrystal_I2C lcd(0x27,16,2);
@@ -21,6 +23,8 @@ String wifiSsid;
 String wifiPass;
 String tcpHostname;
 int tcpPort;
+String mcUsername;
+String mcPassword;
 
 char delimiter = ',';
 
@@ -74,12 +78,22 @@ void loadConfig() {
   }
 
   if(!confDoc["MC"]["HOSTNAME"]) {
-    Serial.println("ERROR! Config: WIFI/PASSWORD object could not be found in config!");
+    Serial.println("ERROR! Config: MC/HOSTNAME object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["MC"]["PORT"]) {
-    Serial.println("ERROR! Config: WIFI/PASSWORD object could not be found in config!");
+    Serial.println("ERROR! Config: MC/PORT object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["MC"]["USERNAME"]) {
+    Serial.println("ERROR! Config: MC/USERNAME object could not be found in config!");
+    while(1);
+  }
+
+  if(!confDoc["MC"]["CLIENTPASSWORD"]) {
+    Serial.println("ERROR! Config: MC/CLIENTPASSWORD object could not be found in config!");
     while(1);
   }
 
@@ -87,6 +101,8 @@ void loadConfig() {
   wifiPass = confDoc["WIFI"]["PASSWORD"].as<String>();
   tcpHostname = confDoc["MC"]["HOSTNAME"].as<String>();
   tcpPort = confDoc["MC"]["PORT"].as<int>();
+  mcUsername = confDoc["MC"]["USERNAME"].as<String>();
+  mcPassword = confDoc["MC"]["CLIENTPASSWORD"].as<String>();
 
   configFile.close();
 }
@@ -122,6 +138,10 @@ void connectToTCPServer() {
   }
 
   Serial.println("TCP: Successfully connected to " + tcpHostname + ":" + tcpPort);
+
+  if(!loginToTcpServer()) {
+    while(1);
+  }
 }
 
 String clientRead(unsigned long timeoutMs = 2000) {
@@ -129,10 +149,11 @@ String clientRead(unsigned long timeoutMs = 2000) {
 
   while (!wifiClient.available()) {
     if (millis() - start >= timeoutMs) {
-      Serial.println("ERROR! TCP: Timeout waiting for response.");
-      return "";
+      continue;
     }
     delay(10);
+
+
   }
 
   String response = wifiClient.readStringUntil('\n');
@@ -157,16 +178,90 @@ void textToScreen(String line1, String line2 = "") {
   lcd.print(line2);
 }
 
-void loginToTcpServer() {
-  wifiClient.println("TEEST");
+String encodeNetworkPackage(std::initializer_list<String> segments) {
+  String package = "";
+  int i = 0;
+  for (auto& s : segments) {
+    package += base64Encode(s);
+    if (i < segments.size() - 1) {
+      package += ',';
+    }
+    i++;
+  }
+  return package;
+}
+
+int decodeNetworkPackage(String package, String output[], int maxSegments) {
+  int index = 0;
+  int lastIndex = 0;
+
+  while (index < maxSegments) {
+    int delimiterIndex = package.indexOf(delimiter, lastIndex);
+    if (delimiterIndex == -1) {
+      output[index++] = base64Decode(package.substring(lastIndex));
+      break;
+    }
+
+    output[index++] = base64Decode(package.substring(lastIndex, delimiterIndex));
+    lastIndex = delimiterIndex + 1;
+  }
+
+  return index; 
+}
+
+String base64Encode(String input) {
+  int inputLen = input.length();
+  char inputBuf[inputLen + 1];
+  input.toCharArray(inputBuf, sizeof(inputBuf));
+
+  int outputLen = Base64.encodedLength(inputLen);
+  char encoded[outputLen + 1];
+
+  Base64.encode(encoded, inputBuf, inputLen);
+  encoded[outputLen] = '\0';
+  return String(encoded);
+}
+
+String base64Decode(String encodedStr) {
+  int inputLen = encodedStr.length();
+  char encodedBuf[inputLen + 1];
+  encodedStr.toCharArray(encodedBuf, sizeof(encodedBuf));
+
+  int outputLen = Base64.decodedLength(encodedBuf, inputLen);
+  char decoded[outputLen + 1];
+
+  Base64.decode(decoded, encodedBuf, inputLen);
+  decoded[outputLen] = '\0';
+  return String(decoded);
+}
+
+bool loginToTcpServer() {
+  String loginPackage = encodeNetworkPackage({"LOGIN", mcUsername, mcPassword});
+
+  wifiClient.println(loginPackage);
 
   String response = clientRead();
-  /*if (response == "") {
-    Serial.println("No response or timeout during login.");
-    return;
-  }*/
 
-  Serial.println("Server response: " + response);
+  if (response == "") {
+    Serial.println("ERROR! Login: No response or timeout during login!");
+    return false;
+  }
+
+  String package[10];
+  int pLength = decodeNetworkPackage(response, package, 10);
+
+  if(pLength != 2 && package[0] != "LOGIN") {
+    Serial.println("ERROR! Login: Malformed Login Package!");
+    return false;
+  }
+
+  if(package[1] != "ACK") {
+    Serial.println("ERROR! Login: Wrong Credentials!");
+    return false;
+  }
+
+  Serial.println("Login: ALL OK LOGIN WORKED");
+  return true;
 }
 
 bool checkConnections() {
@@ -205,10 +300,6 @@ void setup() {
 
   connectToWifi();
   connectToTCPServer();
-  
-  loginToTcpServer();
-
-  textToScreen("ashduijasghuizdhgasgdhjasgd", "123");
 }
 
 void loop() {
@@ -216,6 +307,27 @@ void loop() {
     return;
   }
 
+  String response = clientRead();
+
+  /*if (response == "") {
+    Serial.println("ERROR! LOOP: No response or timeout!");
+    return;
+  }*/
+
+  String package[10];
+  int pLength = decodeNetworkPackage(response, package, 10);
+
+  if(pLength < 1) {
+    Serial.println("ERROR! LOOP: Malformed package!");
+    return;
+  }
+
+  Serial.println(package[0]);
+
+  if(package[0] == "RING") {
+    Serial.println("RING RING RING");
+    ring();
+  }
 
   // TODO:
 }

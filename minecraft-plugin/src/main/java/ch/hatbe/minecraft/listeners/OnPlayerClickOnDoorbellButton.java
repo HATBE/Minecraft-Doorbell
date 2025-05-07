@@ -1,5 +1,8 @@
 package ch.hatbe.minecraft.listeners;
 
+import ch.hatbe.minecraft.client.HardwareClient;
+import ch.hatbe.minecraft.tcpserver.ClientHandler;
+import ch.hatbe.minecraft.tcpserver.PackageHelper;
 import ch.hatbe.minecraft.tcpserver.TcpServer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -51,10 +54,20 @@ public class OnPlayerClickOnDoorbellButton implements Listener {
 
         String username = lines[1];
 
-        System.out.println(username);
+        // TODO: handle no connected
 
-        this.tcpServer.getClients().forEach(client -> {
-            client.getToClientWriter().println("RING");
-        });
+        for(ClientHandler clientHandler : this.tcpServer.getClients()) {
+
+            System.out.println(clientHandler.getHwCLient().getUsername());
+
+
+            if(!clientHandler.getHwCLient().getUsername().equals(username)) {
+                event.getPlayer().sendMessage(String.format("There was no Doorbell found for the user %s", username));
+                return;
+            }
+
+            clientHandler.getToClientWriter().println(PackageHelper.encodeNetworkPackage(new String[]{"RING", event.getPlayer().getName()}));
+            event.getPlayer().sendMessage("Successfully rang the doorbell");
+        }
     }
 }

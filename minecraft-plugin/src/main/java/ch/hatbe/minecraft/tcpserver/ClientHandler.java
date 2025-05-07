@@ -7,9 +7,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class ClientHandler implements Runnable {
-
     private Thread thread;
     private Socket client;
     private TcpServer server;
@@ -46,54 +46,53 @@ public class ClientHandler implements Runnable {
                     continue;
                 }
 
-               System.out.println(data);
+                String[] segments = data.split(",");
 
-               this.toClientWriter.println("ABC");
-
-               /*
-
-                String[] segments = data.split("/:/");
-
-                // NOT LOGGED IN!
-                if(hwCLient == null) {
-                    if(segments.length != 3) {
-                        return;
-                    }
-
-                    System.out.println("1");
-
-
-                    if(!segments[0].equals("LOGIN")) {
-                        System.out.println("NO LOGIN");
-                        return;
-                    }
-
-                    String clientId = segments[1];
-                    String password = segments[2];
-
-                    System.out.println(clientId + " " + password);
-
-                    for(HardwareClient client : JavaPlugin.getPlugin(DoorbellPlugin.class).getRegisteredHardwareClients()) {
-                        if(client.getId().equals(clientId)) {
-                            // TODO: HASHING!!
-                            if(client.getPasswordHash().equals(password)) {
-                                // LOGIN IS SUCCESSFULLY
-                                this.hwCLient = client;
-                                this.toClientWriter.println("LOGIN/:/ACK");
-                                continue CLIENT_LOOP;
-                            }
-
-                        }
-                    }
-
-                    this.toClientWriter.println("LOGIN/:/NACK");
-
-                    this.disconnect();
-                    return;
+                for(int i = 0; i < segments.length; i++) {
+                    segments[i] = new String(Base64.getDecoder().decode(segments[i].getBytes()));
                 }
 
-                // TODO: GOON::::*/
+                if(hwCLient == null) {
+                    // CLIENT IS NOT LOGGEDIN
 
+                    if(!segments[0].equals("LOGIN")) {
+                        this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
+                        System.out.println("NO LOGIN");
+                        this.disconnect();
+                        return;
+                    }
+
+                    String username = segments[1];
+                    String password = segments[2];
+
+                    // TODO:CHECK THE PW!!!!! AND IF IT IS IN THE LIST!!!!!!
+
+                    if(!JavaPlugin.getPlugin(DoorbellPlugin.class).getHardwareClientsStorage().contains(username)) {
+                        this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
+                        System.out.println("NO USERNAME");
+                        this.disconnect();
+                        return;
+                    }
+
+                    String passwordFromConfig = JavaPlugin.getPlugin(DoorbellPlugin.class).getHardwareClientsStorage().getString(String.format("%s.password", username));
+
+                    System.out.println(passwordFromConfig);
+                    System.out.println(password);
+
+                    if(!passwordFromConfig.equals(password)) {
+                        this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
+                        System.out.println("PASSWORD WRONG");
+                        this.disconnect();
+                        return;
+                    }
+
+                    this.hwCLient = new HardwareClient(username);
+
+                    this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "ACK"}));
+                    continue CLIENT_LOOP;
+                }
+
+                this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"ACK"}));
             }
        } catch (IOException e) {
            e.printStackTrace();
@@ -136,5 +135,9 @@ public class ClientHandler implements Runnable {
 
     public Socket getClient() {
         return client;
+    }
+
+    public HardwareClient getHwCLient() {
+        return hwCLient;
     }
 }
