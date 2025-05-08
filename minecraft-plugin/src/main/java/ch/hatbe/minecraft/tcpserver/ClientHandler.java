@@ -57,7 +57,6 @@ public class ClientHandler implements Runnable {
 
                     if(!segments[0].equals("LOGIN")) {
                         this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
-                        System.out.println("NO LOGIN");
                         this.disconnect();
                         return;
                     }
@@ -67,19 +66,14 @@ public class ClientHandler implements Runnable {
 
                     if(!JavaPlugin.getPlugin(DoorbellPlugin.class).getHardwareClientsStorage().contains(username)) {
                         this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
-                        System.out.println("NO USERNAME");
                         this.disconnect();
                         return;
                     }
 
                     String passwordFromConfig = JavaPlugin.getPlugin(DoorbellPlugin.class).getHardwareClientsStorage().getString(String.format("%s.password", username));
 
-                    System.out.println(passwordFromConfig);
-                    System.out.println(password);
-
                     if(!passwordFromConfig.equals(password)) {
                         this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
-                        System.out.println("PASSWORD WRONG");
                         this.disconnect();
                         return;
                     }
@@ -91,7 +85,7 @@ public class ClientHandler implements Runnable {
                 }
 
                 if(segments[0].equals("RING") && segments[1].equals("ACK")) {
-                    System.out.println("RING");
+                    System.out.println("RING ACK");
                 }
 
                 this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"ACK"}));

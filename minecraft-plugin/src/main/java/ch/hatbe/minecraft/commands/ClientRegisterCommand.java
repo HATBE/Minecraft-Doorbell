@@ -30,8 +30,6 @@ public class ClientRegisterCommand implements CommandExecutor {
 
         String client = JavaPlugin.getPlugin(DoorbellPlugin.class).getHardwareClientsStorage().getString(player.getName());
 
-        System.out.println(client);
-
         if(client != null) {
             player.sendMessage("You already have a client, if you forgot the password, f you!");
             return false;
