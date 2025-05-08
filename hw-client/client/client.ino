@@ -11,10 +11,10 @@
 LiquidCrystal_I2C lcd(0x27,16,2);
 WiFiClient wifiClient;
 
-int buzzerPin = 7;
-int redLedPin = 5;
-int greenLedPin = 6;
-int blueLedPin = 2;
+const int PIN_BUZZER = 7;
+const int PIN_RED_LED = 5;
+const int PIN_GREEN_LED = 6;
+const int PIN_BLUE_LED = 2;
 
 // TODO: ERROR HANDLER
 //list<String> errors;
@@ -28,17 +28,57 @@ String mcPassword;
 
 char delimiter = ',';
 
+bool error = false;
+
+void textToScreen(String line1, String line2 = "") {
+  if(line1.length() > 16) {
+    textToScreen("TEXT TO LONG", line2);
+    return;
+  }
+  if(line2.length() > 16) {
+    textToScreen(line1, "TEXT TO LONG");
+    return;
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
+}
+
+void clearScreen() {
+   lcd.clear();
+}
+
+void setError(String message) {
+  error = true;
+  textToScreen("ERROR!", message);
+  digitalWrite(PIN_RED_LED, HIGH);
+  digitalWrite(PIN_GREEN_LED, LOW);
+}
+
+void setSuccess() {
+  error = false;
+  clearScreen();
+  digitalWrite(PIN_GREEN_LED, HIGH);
+  digitalWrite(PIN_RED_LED, LOW);
+}
+
 void loadConfig() {
   Serial.println("SD: Start initializing SD card...");
   if(!SD.begin(4)) {
+    setError("SD INIT FAILED");
     Serial.println("ERROR! SD: Initialization of SD card failed!");
     while(1);
   }
+
   Serial.println("SD: Initialization of SD card successfully done.");
 
   File configFile = SD.open("CONF");
 
   if(!configFile) {
+    setError("SD CONF 404");
     Serial.println("ERROR! SD: Configfile could not be found!");
     while(1);
   }
@@ -53,46 +93,49 @@ void loadConfig() {
   deserializeJson(confDoc, fileContent);
 
   if(!confDoc["WIFI"]) {
+    setError("CNF WIFI 404");
     Serial.println("ERROR! Config: WIFI object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["WIFI"]["SSID"]) {
+    setError("CNF SSID 404");
     Serial.println("ERROR! Config: WIFI/SSID object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["WIFI"]["PASSWORD"]) {
+    setError("CNF PWD 404");
     Serial.println("ERROR! Config: WIFI/PASSWORD object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["MC"]) {
-    Serial.println("ERROR! Config: MC object could not be found in config!");
-    while(1);
-  }
-
-  if(!confDoc["MC"]) {
+    setError("CNF MC 404");
     Serial.println("ERROR! Config: MC object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["MC"]["HOSTNAME"]) {
+    setError("CNF HOST 404");
     Serial.println("ERROR! Config: MC/HOSTNAME object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["MC"]["PORT"]) {
+    setError("CNF PORT 404");
     Serial.println("ERROR! Config: MC/PORT object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["MC"]["USERNAME"]) {
+    setError("CNF UNAME 404");
     Serial.println("ERROR! Config: MC/USERNAME object could not be found in config!");
     while(1);
   }
 
   if(!confDoc["MC"]["CLIENTPASSWORD"]) {
+    setError("CNF MCPWD 404");
     Serial.println("ERROR! Config: MC/CLIENTPASSWORD object could not be found in config!");
     while(1);
   }
@@ -111,6 +154,7 @@ void connectToWifi() {
   Serial.println("Wifi: Start initialization of Wifi.");
 
   if(WiFi.status() == WL_NO_MODULE) {
+    setError("WIFI MODULE");
     Serial.println("ERROR! Wifi: Communication with WiFi module failed!");
     while (1); 
   }
@@ -121,11 +165,14 @@ void connectToWifi() {
 
   // TODO: timeout
   while (wifiStatus != WL_CONNECTED) {
+    digitalWrite(PIN_BLUE_LED, HIGH);
     wifiStatus = WiFi.begin(wifiSsid.c_str(), wifiPass.c_str()); 
-    delay(500); // wait 1 seconds for new connection attempt
+    delay(250); 
+    digitalWrite(PIN_BLUE_LED, LOW);
+    delay(250);
   }
 
-  delay(1000); // delay for DHCP (for slow systems)) // otherwise 0.0.0.0
+  delay(2000); // delay for DHCP (for slow systems)) // otherwise 0.0.0.0
 
   Serial.println("Wifi: Connection Successfull! IP: " + WiFi.localIP().toString());
 }
@@ -133,13 +180,20 @@ void connectToWifi() {
 void connectToTCPServer() {
   Serial.println("TCP: Start connection.");
 
+  digitalWrite(PIN_BLUE_LED, HIGH);
+  delay(200);
+  digitalWrite(PIN_BLUE_LED, LOW);
+
   if(!wifiClient.connect(tcpHostname.c_str(), tcpPort)) {
+    setError("TCP CONN");
     Serial.println("ERROR! TCP: Error while connectiong to TCP server!");
+    return;
   }
 
   Serial.println("TCP: Successfully connected to " + tcpHostname + ":" + tcpPort);
 
   if(!loginToTcpServer()) {
+    setError("TCP LOGIN");
     while(1);
   }
 }
@@ -148,34 +202,18 @@ String clientRead(unsigned long timeoutMs = 2000) {
   unsigned long start = millis();
 
   while (!wifiClient.available()) {
+    /*if(!checkConnections()) {
+      return;
+    }*/
     if (millis() - start >= timeoutMs) {
       continue;
     }
     delay(10);
-
-
   }
 
   String response = wifiClient.readStringUntil('\n');
   response.trim();
   return response;
-}
-
-void textToScreen(String line1, String line2 = "") {
-  if(line1.length() > 16) {
-    textToScreen("TEXT TO LONG", line2);
-    return;
-  }
-  if(line2.length() > 16) {
-    textToScreen(line1, "TEXT TO LONG");
-    return;
-  }
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
 }
 
 String encodeNetworkPackage(std::initializer_list<String> segments) {
@@ -236,9 +274,7 @@ String base64Decode(String encodedStr) {
 }
 
 bool loginToTcpServer() {
-  String loginPackage = encodeNetworkPackage({"LOGIN", mcUsername, mcPassword});
-
-  wifiClient.println(loginPackage);
+  wifiClient.println(encodeNetworkPackage({"LOGIN", mcUsername, mcPassword}));
 
   String response = clientRead();
 
@@ -247,8 +283,8 @@ bool loginToTcpServer() {
     return false;
   }
 
-  String package[10];
-  int pLength = decodeNetworkPackage(response, package, 10);
+  String package[4];
+  int pLength = decodeNetworkPackage(response, package, 4);
 
   if(pLength != 2 && package[0] != "LOGIN") {
     Serial.println("ERROR! Login: Malformed Login Package!");
@@ -266,28 +302,49 @@ bool loginToTcpServer() {
 
 bool checkConnections() {
   if(WiFi.status() != WL_CONNECTED) {
+    setError("WIFI CONN");
     Serial.println("ERROR! WIFI: connection lost!");
     connectToWifi();
     return false;
   }
   if(!wifiClient.connected()) {
+    setError("TCP CONN");
     Serial.println("ERROR! TCP: connection lost!");
     connectToTCPServer();
     return false;
   }
+  setSuccess();
   return true;
 }
 
 void initPins() {
-  pinMode(buzzerPin, OUTPUT);
-  pinMode(greenLedPin, OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  pinMode(blueLedPin, OUTPUT);
+  pinMode(PIN_BUZZER, OUTPUT);
+  pinMode(PIN_GREEN_LED, OUTPUT);
+  pinMode(PIN_RED_LED, OUTPUT);
+  pinMode(PIN_BLUE_LED, OUTPUT);
 }
 
 void initLcd() {
   lcd.init();
   lcd.backlight();
+}
+
+void testSeq() {
+  digitalWrite(PIN_BLUE_LED, HIGH);
+  digitalWrite(PIN_GREEN_LED, HIGH);
+  digitalWrite(PIN_RED_LED, HIGH);
+  textToScreen("STARTUP", "TEST");
+
+  delay(1250);
+
+  tone(PIN_BUZZER, 600); 
+  delay(250); 
+  noTone(PIN_BUZZER);
+  
+  clearScreen();
+  digitalWrite(PIN_BLUE_LED, LOW);
+  digitalWrite(PIN_GREEN_LED, LOW);
+  digitalWrite(PIN_RED_LED, LOW);
 }
 
 void setup() {
@@ -296,10 +353,14 @@ void setup() {
   initPins();
   initLcd();
 
+  testSeq();
+
   loadConfig();
 
   connectToWifi();
   connectToTCPServer();
+
+  setSuccess();
 }
 
 void loop() {
@@ -307,45 +368,48 @@ void loop() {
     return;
   }
 
+  if(error) {
+    return;
+  }
+
   String response = clientRead();
 
-  /*if (response == "") {
-    Serial.println("ERROR! LOOP: No response or timeout!");
-    return;
-  }*/
-
-  String package[10];
-  int pLength = decodeNetworkPackage(response, package, 10);
+  String package[4];
+  int pLength = decodeNetworkPackage(response, package, 4);
 
   if(pLength < 1) {
     Serial.println("ERROR! LOOP: Malformed package!");
     return;
   }
 
-  Serial.println(package[0]);
+  String packageName = package[0];
 
-  if(package[0] == "RING") {
-    Serial.println("RING RING RING");
-    ring();
+  if(pLength == 2) {
+    if(packageName == "RING") {
+      String username = package[1]; 
+
+      Serial.println(username + " has rang the bell");
+      ring(username);
+
+      wifiClient.println(encodeNetworkPackage({"RING", "ACK"}));
+    }
   }
-
-  // TODO:
 }
 
-void ring() {
-  //textToScreen("The bell is ringing");
-  for(int i = 0; i < 2; i++) {
-    for(int j = 0; j < 3; j++) {
-      digitalWrite(blueLedPin, HIGH);
-      tone(buzzerPin, 660);
-      delay(700); 
-      tone(buzzerPin, 550);
-      delay(700); 
-      digitalWrite(blueLedPin, LOW);
-      tone(buzzerPin, 440); 
-      delay(1000); 
-      noTone(buzzerPin);
-    }
-    delay(1500);
+void ring(String username) {
+  textToScreen(username, "rang the bell");
+ 
+  for(int j = 0; j < 3; j++) {
+    digitalWrite(PIN_BLUE_LED, HIGH);
+    tone(PIN_BUZZER, 660);
+    delay(700); 
+    tone(PIN_BUZZER, 550);
+    delay(700); 
+    digitalWrite(PIN_BLUE_LED, LOW);
+    tone(PIN_BUZZER, 440); 
+    delay(1000); 
+    noTone(PIN_BUZZER);
   }
+
+  clearScreen();
 }

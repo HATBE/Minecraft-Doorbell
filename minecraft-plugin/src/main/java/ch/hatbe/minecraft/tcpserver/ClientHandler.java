@@ -65,8 +65,6 @@ public class ClientHandler implements Runnable {
                     String username = segments[1];
                     String password = segments[2];
 
-                    // TODO:CHECK THE PW!!!!! AND IF IT IS IN THE LIST!!!!!!
-
                     if(!JavaPlugin.getPlugin(DoorbellPlugin.class).getHardwareClientsStorage().contains(username)) {
                         this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "NACK"}));
                         System.out.println("NO USERNAME");
@@ -90,6 +88,10 @@ public class ClientHandler implements Runnable {
 
                     this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"LOGIN", "ACK"}));
                     continue CLIENT_LOOP;
+                }
+
+                if(segments[0].equals("RING") && segments[1].equals("ACK")) {
+                    System.out.println("RING");
                 }
 
                 this.toClientWriter.println(PackageHelper.encodeNetworkPackage(new String[]{"ACK"}));

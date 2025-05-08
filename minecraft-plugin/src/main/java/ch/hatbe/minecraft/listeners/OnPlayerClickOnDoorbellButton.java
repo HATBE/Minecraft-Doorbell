@@ -1,6 +1,5 @@
 package ch.hatbe.minecraft.listeners;
 
-import ch.hatbe.minecraft.client.HardwareClient;
 import ch.hatbe.minecraft.tcpserver.ClientHandler;
 import ch.hatbe.minecraft.tcpserver.PackageHelper;
 import ch.hatbe.minecraft.tcpserver.TcpServer;
@@ -52,22 +51,28 @@ public class OnPlayerClickOnDoorbellButton implements Listener {
             return;
         }
 
+        event.setCancelled(true);
+
         String username = lines[1];
 
-        // TODO: handle no connected
-
         for(ClientHandler clientHandler : this.tcpServer.getClients()) {
-
-            System.out.println(clientHandler.getHwCLient().getUsername());
-
-
             if(!clientHandler.getHwCLient().getUsername().equals(username)) {
                 event.getPlayer().sendMessage(String.format("There was no Doorbell found for the user %s", username));
                 return;
             }
 
+            if(clientHandler.getHwCLient().getCooldown() > (System.currentTimeMillis() / 1000)) {
+                event.getPlayer().sendMessage(String.format("Cooldown active. Please wait for %s seconds.", clientHandler.getHwCLient().getCooldown() - (System.currentTimeMillis() / 1000)));
+                return;
+            }
+
+            clientHandler.getHwCLient().resetCooldown(20);
+
             clientHandler.getToClientWriter().println(PackageHelper.encodeNetworkPackage(new String[]{"RING", event.getPlayer().getName()}));
             event.getPlayer().sendMessage("Successfully rang the doorbell");
+            return;
         }
+
+        event.getPlayer().sendMessage(String.format("There was no Doorbell found for the user %s", username));
     }
 }
