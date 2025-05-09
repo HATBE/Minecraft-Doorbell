@@ -2,7 +2,7 @@
 
 This project allows a physical Arduino-based device to ring when a player presses a doorbell button in Minecraft. It showcases the interaction between physical computing and virtual game worlds via WiFi/TCP communication and a custom Minecraft plugin.
 
-![Dorbell](./.img/showcase.mp4)
+![Dorbell](./.img/showcase.gif)
 
 # How its build
 
