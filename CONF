@@ -1,0 +1,12 @@
+{
+	"WIFI": {
+		"SSID": "SSID",
+		"PASSWORD": "PASSWORD"
+	},
+	"MC": {
+		"HOSTNAME": "host.name",
+		"PORT": 1337,
+		"USERNAME": "USERNAME",
+		"CLIENTPASSWORD": "YOUR PASSWORD"
+	}
+}
