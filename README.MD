@@ -195,6 +195,6 @@ Building Live Streams (from me):
 - (5) https://www.youtube.com/watch?v=QGFq3GIfsu4
 - (6) https://www.youtube.com/watch?v=AjfCAAao004
 
-Showcase Video (from me): TODO:
+Showcase Video (from me): https://www.youtube.com/watch?v=Eh1FnSN7wN4
 
-Showcase Short (from me): TODO:
+Showcase Short (from me): https://www.youtube.com/shorts/hLSvBpZgbEg
